@@ -1,6 +1,10 @@
 # Site-ESW2
 Site feito em aula
 
+# Feito por:
+
+Gabriel Moreira Cardoso
+Ennzo Matias Gomes
 
 # Sistema de Gestão de Estacionamento 🚗🅿️
 
