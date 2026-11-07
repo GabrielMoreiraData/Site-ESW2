@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Estacionamento</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ================= CSS GERAL ================= */
+        body {
+            background-color: #F5F7FA;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .hidden { display: none !important; }
+        .visible { display: flex; }
+
+        /* ================= TELA DE LOGIN ================= */
+        #login-screen {
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; background-color: #F6F8FA; position: relative; overflow: hidden; z-index: 1;
+        }
+
+        .bg-shape { position: absolute; border-radius: 24px; z-index: -1; }
+        .shape-solid-tl { background-color: #EEF0F8; width: 180px; height: 180px; top: 15%; left: calc(50% - 300px); }
+        .shape-dash-tl { border: 2px dashed #E2E8F0; width: 140px; height: 140px; top: 10%; left: calc(50% - 220px); }
+        .shape-solid-br { background-color: #EEF0F8; width: 220px; height: 220px; bottom: 15%; right: calc(50% - 320px); }
+        .shape-dash-br { border: 2px dashed #E2E8F0; width: 160px; height: 160px; bottom: 10%; right: calc(50% - 240px); }
+
+        .login-container {
+            background-color: #FFFFFF; border-radius: 8px; padding: 50px 40px;
+            width: 320px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04); z-index: 2;
+        }
+
+        .login-container h2 { color: #1A202C; margin: 0 0 35px 0; font-size: 28px; font-weight: 800; text-align: center; }
+
+        .input-group { margin-bottom: 20px; text-align: left; position: relative; }
+        .input-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #718096; }
+        .input-wrapper { position: relative; }
+        .input-wrapper input {
+            width: 100%; padding: 12px 14px; border: 1px solid #CBD5E0; border-radius: 4px;
+            box-sizing: border-box; outline: none; font-size: 14px; color: #2D3748; transition: 0.2s ease;
+        }
+        .input-wrapper input:focus { border-color: #5BC0DE; }
+
+        .toggle-password { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #A0AEC0; font-size: 16px; }
+        
+        .btn-login {
+            background-color: #5BC0DE; color: white; border: none; padding: 14px; width: 100%;
+            border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 15px; transition: 0.2s ease;
+        }
+        .btn-login:hover { background-color: #46B0D0; }
+
+        .error-state input { border-color: #FC8181 !important; color: #E53E3E; }
+        .error-message, .error-icon { display: none; color: #FC8181; }
+        .error-message { font-size: 12px; margin-top: 5px; }
+        .error-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-weight: bold; }
+        .error-state .error-message, .error-state .error-icon { display: block; }
+
+        /* ================= TELAS INTERNAS ================= */
+        .dashboard { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .header {
+            width: 100%; max-width: 1200px; display: flex; justify-content: space-between; align-items: center;
+            background-color: white; padding: 15px 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px; box-sizing: border-box;
+        }
+        .header h2 { margin: 0; font-size: 20px; color: #333; }
+        .btn-logout { background: #555; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .btn-logout:hover { background: #333; }
+
+        /* ================= TELA DO CAIXA (MAPA DE VAGAS) ================= */
+        .caixa-container {
+            display: flex; gap: 20px; width: 100%; max-width: 1200px; align-items: flex-start;
+        }
+
+        /* O Mapa de Vagas (Esquerda) */
+        .mapa-vagas {
+            flex: 2; background: white; padding: 30px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: grid;
+            grid-template-columns: repeat(5, 1fr); gap: 15px;
+        }
+
+        .vaga {
+            height: 100px; border-radius: 8px; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; cursor: pointer;
+            transition: all 0.2s ease; border: 2px dashed #CBD5E0;
+            position: relative;
+        }
+        .vaga h3 { margin: 0; font-size: 18px; }
+        .vaga p { margin: 5px 0 0 0; font-size: 12px; font-weight: bold; }
+        
+        .vaga:hover { transform: scale(1.05); }
+
+        /* Cores de Estado das Vagas */
+        .vaga.livre { background-color: #E8F8F5; border-color: #2ECC71; color: #27AE60; }
+        .vaga.livre:hover { background-color: #D5F5E3; }
+        
+        .vaga.ocupada { background-color: #FDEDEC; border-color: #E74C3C; color: #C0392B; border-style: solid; }
+        .vaga.ocupada:hover { background-color: #FADBD8; }
+        
+        .vaga.selecionada { box-shadow: 0 0 0 4px rgba(91, 192, 222, 0.4); border-color: #5BC0DE; }
+
+        /* Painel Lateral (Direita) - Formulário e Checkout */
+        .painel-lateral {
+            flex: 1; background: white; padding: 30px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); min-width: 320px;
+            display: flex; flex-direction: column;
+        }
+
+        .painel-lateral h3 { color: #5BC0DE; margin-top: 0; text-align: center; font-size: 18px; border-bottom: 2px solid #F0F2F5; padding-bottom: 15px;}
+        
+        /* Mensagem de estado vazio */
+        .painel-vazio { text-align: center; color: #A0AEC0; margin-top: 40px; font-size: 15px; }
+
+        .painel-lateral .input-group { margin-bottom: 15px; }
+        .painel-lateral .input-group input { 
+            border: 1px solid #CBD5E0; padding: 10px 12px; width: 100%; border-radius: 6px; 
+            margin-top: 4px; box-sizing: border-box; outline: none; font-size: 14px;
+        }
+        .painel-lateral .input-group input:focus { border-color: #5BC0DE; }
+
+        .row-inputs { display: flex; gap: 10px; }
+        .row-inputs .input-group { flex: 1; }
+
+        .btn-acao { color: white; border: none; padding: 14px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; margin-top: 10px; transition: 0.2s;}
+        .btn-entrar { background: #28B463; }
+        .btn-entrar:hover { background: #239B56; }
+        
+        .btn-sair { background: #E74C3C; }
+        .btn-sair:hover { background: #C0392B; }
+
+        /* Estilo do Ticket de Cobrança */
+        .ticket-info { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .ticket-info p { margin: 8px 0; font-size: 14px; color: #4A5568; display: flex; justify-content: space-between;}
+        .ticket-info strong { color: #1A202C; }
+        .valor-destaque { font-size: 24px !important; color: #E74C3C !important; font-weight: 900; margin-top: 15px !important; border-top: 1px dashed #CBD5E0; padding-top: 15px;}
+
+        /* ================= TELA DO ADMIN (POWER BI) ================= */
+        .pbi-container { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 20px; }
+        .pbi-grid-top { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .pbi-grid-bottom { display: grid; grid-template-columns: 2.5fr 1fr; gap: 20px; }
+        .pbi-card { background: #FFFFFF; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #EBEBEB; display: flex; flex-direction: column; align-items: center; }
+        .pbi-card h3 { margin: 0 0 15px 0; font-size: 14px; color: #666; font-weight: 600; width: 100%; text-align: center;}
+        .pbi-card-content { width: 100%; flex-grow: 1; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .big-number { font-size: 42px; font-weight: bold; color: #1A5276; margin: 0; }
+        .small-text { font-size: 13px; color: #888; }
+        .insight-list { list-style: none; padding: 0; margin: 0; width: 100%; }
+        .insight-list li { font-size: 14px; color: #444; margin-bottom: 15px; padding-left: 28px; position: relative; line-height: 1.5; }
+        .insight-list li::before { content: '✔'; position: absolute; left: 0; top: 0; color: #fff; background: #28B463; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; display: flex; justify-content: center; align-items: center; }
+        .chart-container-small { height: 160px; width: 100%; position: relative; }
+        .chart-container-large { height: 300px; width: 100%; position: relative; }
+    </style>
+</head>
+<body>
+
+    <!-- ================= 1. TELA DE LOGIN ================= -->
+    <div id="login-screen">
+        <div class="bg-shape shape-solid-tl"></div><div class="bg-shape shape-dash-tl"></div>
+        <div class="bg-shape shape-solid-br"></div><div class="bg-shape shape-dash-br"></div>
+
+        <div class="login-container">
+            <h2>Estacionamento</h2>
+            <form id="form-login">
+                <div class="input-group" id="grupo-cpf">
+                    <label>CPF</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="cpf" placeholder="Ex: 11111111101">
+                        <span class="error-icon">!</span>
+                    </div>
+                    <span class="error-message">CPF não encontrado no sistema</span>
+                </div>
+                
+                <div class="input-group" id="grupo-senha">
+                    <label>Senha</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="senha" placeholder="Sua senha">
+                        <span class="toggle-password" onclick="alternarSenha()">👁️</span>
+                    </div>
+                    <span class="error-message">Senha incorreta</span>
+                </div>
+                
+                <button type="submit" class="btn-login">Acessar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= 2. TELA DO CAIXA (MAPA INTERATIVO) ================= -->
+    <div id="caixa-screen" class="dashboard hidden">
+        <div class="header">
+            <h2>Mapa do Estacionamento (Caixa)</h2>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+        
+        <div class="caixa-container">
+            
+            <!-- Grid de Vagas -->
+            <div class="mapa-vagas" id="grid-vagas">
+                <!-- Gerado via JavaScript -->
+            </div>
+
+            <!-- Painel Lateral de Interação -->
+            <div class="painel-lateral">
+                
+                <!-- Estado Inicial -->
+                <div id="painel-instrucao">
+                    <h3>Aguardando...</h3>
+                    <p class="painel-vazio">Clique em uma vaga no mapa para registrar entrada ou realizar a cobrança.</p>
+                </div>
+
+                <!-- Formulário de Entrada (Vaga Livre) -->
+                <div id="painel-entrada" class="hidden">
+                    <h3 id="titulo-vaga-entrada">Registrar Entrada</h3>
+                    <form id="form-entrada">
+                        <input type="hidden" id="vaga-id-entrada">
+                        
+                        <div class="row-inputs">
+                            <div class="input-group">
+                                <label>Placa</label>
+                                <input type="text" id="placa" placeholder="ABC-1234" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Horário</label>
+                                <input type="time" id="horario" required>
+                            </div>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Modelo do Veículo</label>
+                            <input type="text" id="modelo" placeholder="Ex: Civic Preto" required>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Nome do Dono (Opcional)</label>
+                            <input type="text" id="nome-dono" placeholder="Nome do cliente">
+                        </div>
+
+                        <button type="submit" class="btn-acao btn-entrar">Confirmar Entrada</button>
+                    </form>
+                </div>
+
+                <!-- Formulário de Saída/Cobrança (Vaga Ocupada) -->
+                <div id="painel-saida" class="hidden">
+                    <h3 id="titulo-vaga-saida">Cobrança e Saída</h3>
+                    
+                    <div class="ticket-info">
+                        <p>Placa: <strong id="ticket-placa">---</strong></p>
+                        <p>Modelo: <strong id="ticket-modelo">---</strong></p>
+                        <p>Dono: <strong id="ticket-dono">---</strong></p>
+                        <p>Horário Entrada: <strong id="ticket-hora">---</strong></p>
+                        <p class="valor-destaque">Total: <strong id="ticket-valor">R$ 0,00</strong></p>
+                    </div>
+
+                    <button class="btn-acao btn-sair" onclick="liberarVaga()">Registrar Pagamento e Liberar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 3. TELA DO ADMIN (POWER BI) ================= -->
+    <div id="admin-screen" class="dashboard hidden">
+        <div class="header">
+            <h2>Painéis Gerenciais - Visão Geral</h2>
+            <button class="btn-logout" onclick="fazerLogout()">Sair do Painel</button>
+        </div>
+        <div class="pbi-container">
+            <div class="pbi-grid-top">
+                <div class="pbi-card">
+                    <h3>Taxa de Ocupação Atual</h3>
+                    <div class="pbi-card-content chart-container-small"><canvas id="chartOcupacao"></canvas></div>
+                </div>
+                <div class="pbi-card">
+                    <h3>Ticket Médio Mensal</h3>
+                    <div class="pbi-card-content"><p class="big-number">R$ 28,50</p><p class="small-text">+12% comparado ao mês anterior</p></div>
+                </div>
+                <div class="pbi-card">
+                    <h3>Veículos por Categoria</h3>
+                    <div class="pbi-card-content chart-container-small"><canvas id="chartCategorias"></canvas></div>
+                </div>
+                <div class="pbi-card">
+                    <h3>Formas de Pagamento</h3>
+                    <div class="pbi-card-content chart-container-small"><canvas id="chartPagamentos"></canvas></div>
+                </div>
+            </div>
+            <div class="pbi-grid-bottom">
+                <div class="pbi-card" style="align-items: flex-start;">
+                    <h3>Desempenho Semanal: Faturamento vs Fluxo</h3>
+                    <div class="pbi-card-content chart-container-large"><canvas id="chartDesempenho"></canvas></div>
+                </div>
+                <div class="pbi-card" style="align-items: flex-start;">
+                    <h3>Insights Inteligentes</h3>
+                    <div class="pbi-card-content" style="align-items: flex-start; justify-content: flex-start; padding-top: 10px;">
+                        <ul class="insight-list">
+                            <li>O <strong>pico de lotação</strong> ocorre terças e quintas entre 14h e 16h.</li>
+                            <li>Houve um <strong>aumento de 35%</strong> no uso de pagamentos via PIX nesta semana.</li>
+                            <li>A receita com <strong>clientes mensalistas</strong> representa hoje 40% da receita fixa.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPT GERAL ================= -->
+    <script>
+        /* ====== LOGIN LOGIC ====== */
+        function alternarSenha() {
+            const c = document.getElementById('senha');
+            c.type = c.type === 'password' ? 'text' : 'password';
+        }
+
+        let graficosRenderizados = false;
+
+        document.getElementById('form-login').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            const cpf = document.getElementById('cpf').value;
+            const senha = document.getElementById('senha').value;
+            
+            document.getElementById('grupo-cpf').classList.remove('error-state');
+            document.getElementById('grupo-senha').classList.remove('error-state');
+
+            if (cpf === '11111111101' && senha === 'admin') {
+                mostrarTela('admin-screen');
+                if(!graficosRenderizados) { renderizarGraficos(); graficosRenderizados = true; }
+            } 
+            else if (cpf === '22222222202' && senha === 'func') {
+                mostrarTela('caixa-screen');
+            } else {
+                document.getElementById('grupo-cpf').classList.add('error-state');
+                document.getElementById('grupo-senha').classList.add('error-state');
+            }
+        });
+
+        function mostrarTela(id) {
+            document.querySelectorAll('.dashboard, #login-screen').forEach(el => el.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function fazerLogout() {
+            document.getElementById('form-login').reset();
+            mostrarTela('login-screen');
+        }
+
+        /* ====== MAPA DE VAGAS LOGIC ====== */
+        const totalVagas = 20; // Pátio com 20 vagas (A1 a A10, B1 a B10)
+        let vagasDB = {};
+        let vagaAtualSelecionada = null;
+        let loopPrecos = null;
+
+        // Inicializa o Grid de Vagas
+        function inicializarMapa() {
+            const grid = document.getElementById('grid-vagas');
+            grid.innerHTML = '';
+            
+            for(let i = 1; i <= totalVagas; i++) {
+                const idVaga = i <= 10 ? `A${i}` : `B${i-10}`;
+                vagasDB[idVaga] = { status: 'livre', placa: '', modelo: '', dono: '', horarioTexto: '', timestampEntrada: null };
+                
+                const divVaga = document.createElement('div');
+                divVaga.className = 'vaga livre';
+                divVaga.id = `vaga-${idVaga}`;
+                divVaga.innerHTML = `<h3>${idVaga}</h3><p>LIVRE</p>`;
+                divVaga.onclick = () => selecionarVaga(idVaga);
+                
+                grid.appendChild(divVaga);
+            }
+
+            // Inicia o simulador que atualiza os preços em tempo real a cada segundo
+            if(!loopPrecos) loopPrecos = setInterval(atualizarPrecosTela, 1000);
+        }
+
+        // Seleciona a vaga e mostra o painel correspondente
+        function selecionarVaga(idVaga) {
+            vagaAtualSelecionada = idVaga;
+            
+            // Estética de seleção no mapa
+            document.querySelectorAll('.vaga').forEach(v => v.classList.remove('selecionada'));
+            document.getElementById(`vaga-${idVaga}`).classList.add('selecionada');
+
+            // Esconde todos os painéis
+            document.getElementById('painel-instrucao').classList.add('hidden');
+            document.getElementById('painel-entrada').classList.add('hidden');
+            document.getElementById('painel-saida').classList.add('hidden');
+
+            const dados = vagasDB[idVaga];
+
+            if(dados.status === 'livre') {
+                // Abre form de entrada
+                document.getElementById('painel-entrada').classList.remove('hidden');
+                document.getElementById('titulo-vaga-entrada').innerText = `Registrar Entrada - Vaga ${idVaga}`;
+                document.getElementById('vaga-id-entrada').value = idVaga;
+                
+                // Preenche a hora atual automaticamente
+                const agora = new Date();
+                document.getElementById('horario').value = agora.toTimeString().substring(0,5);
+                
+                document.getElementById('placa').focus();
+            } else {
+                // Abre tela de cobrança
+                document.getElementById('painel-saida').classList.remove('hidden');
+                document.getElementById('titulo-vaga-saida').innerText = `Saída - Vaga ${idVaga}`;
+                document.getElementById('ticket-placa').innerText = dados.placa.toUpperCase();
+                document.getElementById('ticket-modelo').innerText = dados.modelo;
+                document.getElementById('ticket-dono').innerText = dados.dono || 'Não informado';
+                document.getElementById('ticket-hora').innerText = dados.horarioTexto;
+                
+                calcularMostrarPreco();
+            }
+        }
+
+        // Efetiva a Entrada (Grava os dados e muda pra vermelho)
+        document.getElementById('form-entrada').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const idVaga = document.getElementById('vaga-id-entrada').value;
+            
+            // Salva dados na "memória"
+            vagasDB[idVaga].status = 'ocupada';
+            vagasDB[idVaga].placa = document.getElementById('placa').value;
+            vagasDB[idVaga].modelo = document.getElementById('modelo').value;
+            vagasDB[idVaga].dono = document.getElementById('nome-dono').value;
+            vagasDB[idVaga].horarioTexto = document.getElementById('horario').value;
+            
+            // Salva o milissegundo exato para calcular o preço simulado
+            vagasDB[idVaga].timestampEntrada = Date.now();
+
+            // Atualiza Visual do Mapa
+            const divVaga = document.getElementById(`vaga-${idVaga}`);
+            divVaga.className = 'vaga ocupada selecionada';
+            divVaga.innerHTML = `<h3>${idVaga}</h3><p>${vagasDB[idVaga].placa.toUpperCase()}</p>`;
+
+            // Força a troca para o painel de saída (agora está ocupada)
+            selecionarVaga(idVaga);
+            document.getElementById('form-entrada').reset();
+        });
+
+        // Função de simulação: Valor base R$10. Aumenta R$ 0.50 a cada 3 segundos na tela para testes.
+        function calcularMostrarPreco() {
+            if(!vagaAtualSelecionada || vagasDB[vagaAtualSelecionada].status === 'livre') return;
+            
+            const entrada = vagasDB[vagaAtualSelecionada].timestampEntrada;
+            const agora = Date.now();
+            const segundosPassados = Math.floor((agora - entrada) / 1000);
+            
+            // Lógica fictícia acelerada:
+            const valorBase = 10.00;
+            const taxaAdicional = Math.floor(segundosPassados / 3) * 0.50; // +50 centavos a cada 3s
+            const total = valorBase + taxaAdicional;
+
+            document.getElementById('ticket-valor').innerText = total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        }
+
+        // Loop que roda a cada 1 segundo para atualizar o preço do ticket que estiver aberto na tela
+        function atualizarPrecosTela() {
+            calcularMostrarPreco();
+        }
+
+        // Pagar e Liberar a Vaga (Volta a ficar Verde)
+        function liberarVaga() {
+            const idVaga = vagaAtualSelecionada;
+            const valorPago = document.getElementById('ticket-valor').innerText;
+            
+            alert(`Pagamento de ${valorPago} registrado com sucesso. A Vaga ${idVaga} foi liberada!`);
+            
+            // Reseta na memória
+            vagasDB[idVaga] = { status: 'livre', placa: '', modelo: '', dono: '', horarioTexto: '', timestampEntrada: null };
+            
+            // Atualiza Visual
+            const divVaga = document.getElementById(`vaga-${idVaga}`);
+            divVaga.className = 'vaga livre selecionada';
+            divVaga.innerHTML = `<h3>${idVaga}</h3><p>LIVRE</p>`;
+
+            // Volta o painel para o modo de entrada
+            selecionarVaga(idVaga);
+        }
+
+        // Chama a inicialização do mapa assim que a página carrega
+        inicializarMapa();
+
+
+        /* ====== GRÁFICOS POWER BI ====== */
+        function renderizarGraficos() {
+            Chart.defaults.font.family = "'Segoe UI', sans-serif"; Chart.defaults.color = '#666'; Chart.defaults.plugins.legend.position = 'bottom';
+            new Chart(document.getElementById('chartOcupacao'), { type: 'doughnut', data: { labels: ['Ocupado', 'Livre'], datasets: [{ data: [78, 22], backgroundColor: ['#1A5276', '#E5E7E9'], borderWidth: 0, cutout: '75%' }] }, options: { responsive: true, maintainAspectRatio: false, circumference: 180, rotation: 270, plugins: { legend: { display: false } } } });
+            new Chart(document.getElementById('chartCategorias'), { type: 'pie', data: { labels: ['Carros', 'Motos', 'SUVs'], datasets: [{ data: [55, 30, 15], backgroundColor: ['#2980B9', '#85C1E9', '#D4E6F1'], borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false } });
+            new Chart(document.getElementById('chartPagamentos'), { type: 'doughnut', data: { labels: ['Cartão', 'PIX', 'Dinheiro'], datasets: [{ data: [50, 40, 10], backgroundColor: ['#117A65', '#48C9B0', '#D1F2EB'], borderWidth: 1, cutout: '60%' }] }, options: { responsive: true, maintainAspectRatio: false } });
+            new Chart(document.getElementById('chartDesempenho'), { type: 'bar', data: { labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'], datasets: [ { label: 'Volume', type: 'line', data: [120, 150, 140, 160, 210, 250, 130], borderColor: '#E67E22', backgroundColor: '#E67E22', borderWidth: 2, tension: 0.3, yAxisID: 'y1' }, { label: 'Faturamento', type: 'bar', data: [1800, 2200, 2100, 2400, 3150, 3800, 1950], backgroundColor: '#2874A6', borderRadius: 4, yAxisID: 'y' } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } } });
+        }
+    </script>
+</body>
+</html>
